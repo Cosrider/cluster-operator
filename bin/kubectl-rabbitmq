@@ -122,8 +122,8 @@ version() {
 
 get_instance_details() {
     instance=${1}
-    username=$(kubectl get ${NAMESPACE} secret "${instance}-default-user" -o jsonpath="{.data.username}" | base64 --decode)
-    password=$(kubectl get ${NAMESPACE} secret "${instance}-default-user" -o jsonpath="{.data.password}" | base64 --decode)
+    username=$(kubectl get "$NAMESPACE" secret "${instance}-default-user" -o jsonpath="{.data.username}" | base64 --decode)
+    password=$(kubectl get "$NAMESPACE" secret "${instance}-default-user" -o jsonpath="{.data.password}" | base64 --decode)
     service="$instance"
 }
 
@@ -132,13 +132,13 @@ perf_test() {
     shift 1
     perftestopts=$*
 
-    kubectl ${NAMESPACE} run perf-test \
+    kubectl "$NAMESPACE" run perf-test \
         --expose=true \
         --port=8080 \
         --labels="app=perf-test,run=perf-test" \
         --image=pivotalrabbitmq/perf-test \
         -- --uri "amqp://${username}:${password}@${service}" \
-        --metrics-prometheus ${perftestopts}
+        --metrics-prometheus "$perftestopts"
 }
 
 stream_perf_test() {
@@ -146,17 +146,17 @@ stream_perf_test() {
     shift 1
     streamperftestopts=$*
 
-    kubectl ${NAMESPACE} run stream-perf-test \
+    kubectl "$NAMESPACE" run stream-perf-test \
         --labels="app=stream-perf-test,run=stream-perf-test" \
         --image=pivotalrabbitmq/stream-perf-test \
         -- --uris "rabbitmq-stream://${username}:${password}@${service}" \
-        ${streamperftestopts}
+        "$streamperftestopts"
 }
 
 manage() {
     get_instance_details "$@"
 
-    TLS="$(kubectl $NAMESPACE get service ${service} -o jsonpath='{.spec.ports[?(@.name=="management-tls")]}')"
+    TLS="$(kubectl "$NAMESPACE" get service "$service" -o jsonpath='{.spec.ports[?(@.name=="management-tls")]}')"
     if [[ -n "$TLS" ]]; then
 	    MGMT_PORT=15671
 	    MGMT_URL="https://localhost:$MGMT_PORT/"
@@ -176,11 +176,11 @@ manage() {
         sleep 2
         $OPEN "$MGMT_URL"
     ) &
-    kubectl ${NAMESPACE} port-forward "service/${service}" $MGMT_PORT
+    kubectl "$NAMESPACE" port-forward "service/${service}" $MGMT_PORT
 }
 
 list_rabbitmq_clusters() {
-    kubectl get ${NAMESPACE} rabbitmqclusters
+    kubectl get "$NAMESPACE" rabbitmqclusters
 }
 
 create() {
@@ -248,48 +248,48 @@ create() {
             ;;
         esac
     done
-    kubectl ${NAMESPACE} apply -f "$rabbitmq_manifest_file"
+    kubectl "$NAMESPACE" apply -f "$rabbitmq_manifest_file"
 }
 
 delete() {
     for cluster in "$@"; do
-        kubectl ${NAMESPACE} delete rabbitmqcluster "${cluster}"
+        kubectl "$NAMESPACE" delete rabbitmqcluster "${cluster}"
     done
 }
 
 observe() {
-    kubectl ${NAMESPACE} exec -it "${1}-server-${2}" -c rabbitmq -- rabbitmq-diagnostics observer
+    kubectl "$NAMESPACE" exec -it "${1}-server-${2}" -c rabbitmq -- rabbitmq-diagnostics observer
 }
 
 get() {
-    kubectl get ${NAMESPACE} pods,cm,sts,svc,secrets,rs -l "app.kubernetes.io/name=$1"
+    kubectl get "$NAMESPACE" pods,cm,sts,svc,secrets,rs -l "app.kubernetes.io/name=$1"
 }
 
 debug() {
-    for node in $(kubectl ${NAMESPACE} get pods -l "app.kubernetes.io/name=${1}" -ocustom-columns=name:.metadata.name --no-headers); do
+    for node in $(kubectl "$NAMESPACE" get pods -l "app.kubernetes.io/name=${1}" -ocustom-columns=name:.metadata.name --no-headers); do
         echo -n "${node}: "
-        kubectl ${NAMESPACE} exec "${node}" -c rabbitmq -- rabbitmqctl set_log_level debug
+        kubectl "$NAMESPACE" exec "${node}" -c rabbitmq -- rabbitmqctl set_log_level debug
     done
 }
 
 tail() {
-    kubectl tail ${NAMESPACE} --svc "${1}"
+    kubectl tail "$NAMESPACE" --svc "${1}"
 }
 
 enable_all_feature_flags() {
-    kubectl ${NAMESPACE} exec "${1}-server-0" -c rabbitmq -- rabbitmqctl enable_feature_flag all
+    kubectl "$NAMESPACE" exec "${1}-server-0" -c rabbitmq -- rabbitmqctl enable_feature_flag all
 }
 
 pause-reconciliation() {
-    kubectl ${NAMESPACE} label rabbitmqclusters "${1}" rabbitmq.com/pauseReconciliation=true
+    kubectl "$NAMESPACE" label rabbitmqclusters "${1}" rabbitmq.com/pauseReconciliation=true
 }
 
 resume-reconciliation() {
-    kubectl ${NAMESPACE} label rabbitmqclusters "${1}" rabbitmq.com/pauseReconciliation-
+    kubectl "$NAMESPACE" label rabbitmqclusters "${1}" rabbitmq.com/pauseReconciliation-
 }
 
 list-pause-reconciliation-instances() {
-    kubectl get ${NAMESPACE} rabbitmqclusters -l rabbitmq.com/pauseReconciliation=true --show-labels
+    kubectl get "$NAMESPACE" rabbitmqclusters -l rabbitmq.com/pauseReconciliation=true --show-labels
 }
 
 secrets() {
@@ -299,7 +299,7 @@ secrets() {
 }
 
 install_cluster_operator() {
-    kubectl ${NAMESPACE} apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
+    kubectl "$NAMESPACE" apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
 }
 
 main() {
